@@ -1,29 +1,32 @@
 # Kafka Unit Testing
 
-![TravisCI](https://travis-ci.org/chbatey/kafka-unit.svg?branch=master)
+![TravisCI](https://travis-ci.org/mohamnag/kafka-unit.svg?branch=master) [![Release](https://jitpack.io/v/mohamnag/kafka-unit.svg)](https://jitpack.io/#mohamnag/kafka-unit)
 
 Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testing applications that communicate with Kafka.
 
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
-| 0.6        | kafka_2.11:0.10.0.0     | 3.4.6     |
-| 0.5        | kafka_2.11:0.9.0.1      | 3.4.6     |
-| 0.4        | kafka_2.11:0.9.0.1      | 3.4.6     |
-| 0.3        | kafka_2.11:0.8.2.2      | 3.4.6     |
-| 0.2        | kafka_2.11:0.8.2.1      | 3.4.6     |
+| 0.7        | kafka_2.11:0.10.0.0     | 3.4.6     |
 
-## Maven central
+> For older releases/kafka versions refer to [original repo](https://github.com/chbatey/kafka-unit).
 
-```xml
-<dependency>
-    <groupId>info.batey.kafka</groupId>
-    <artifactId>kafka-unit</artifactId>
-    <version>0.6</version>
-</dependency>
+## Importing dependency
+
+### Gradle
+```groovy
+   repositories {
+        jcenter()
+        maven { url "https://jitpack.io" }
+   }
+   dependencies {
+         compile 'com.github.mohamnag:kafka-unit:0.7'
+   }
 ```
 
-## Starting manually
+## Usage
+
+### Starting manually
 
 To start both a Kafka server and ZooKeeper instance on random ports use following code:
 
@@ -47,34 +50,7 @@ KafkaUnit kafkaUnitServer = new KafkaUnit("localhost:5000", "localhost:5001");
 
 Currently only `localhost` is supported and it's required that the connection string consists of only one `localhost:[port]` pair.
 
-You can then write your own code to interact with Kafka or use the following methods:
-
-```java
-kafkaUnitServer.createTopic(testTopic);
-ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
-kafkaUnitServer.sendMessages(producerRecord);
-```
-
-And to read messages:
-
-```java
-List<String> messages = kafkaUnitServer.readMessages(testTopic, 1);
-```
-
-Only `String` messages are supported at the moment.
-
-Alternatively, you can use `getKafkaConnect()` to manually configure producer and consumer clients like:
-
-```java
-Properties props = new Properties();
-props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
-props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaUnitServer.getKafkaConnect());
-
-Producer<Long, String> producer = new KafkaProducer<>(props);
-```
-
-## Using the JUnit Rule
+## Start using JUnit Rule
 
 If you don't want to start/stop the server manually, you can use the JUnit rule, e.g.
 
@@ -106,6 +82,43 @@ If you want to start server on specific ports, use `KafkaUnitRule(int, int)` or 
 ```java
     @Rule
     public KafkaUnitRule kafkaUnitRule = new KafkaUnitRule(5000, 5001);
+```
+
+### Send and receive messages
+> Only `String` messages are supported at the moment using built in methods.
+
+To interact with Kafka you can use following builtin methods:
+
+to send messages:
+```java
+kafkaUnitServer.createTopic(testTopic);
+ProducerRecord<String, String> producerRecord = new ProducerRecord<>(testTopic, "key", "value");
+kafkaUnitServer.sendMessages(producerRecord);
+```
+
+and to read messages:
+```java
+List<String> messages = kafkaUnitServer.readMessages(testTopic, 1);
+```
+
+or
+```java
+List<ProducerRecord<String, String>> producerRecords = kafkaUnitServer.readProducerRecords(testTopic, 1);
+```
+
+There are cases when you are interested in events only published in part of test process, in such situations
+you can call `kafkaUnitServer.skipMessagesInQueue(testTopic)` just before that specific part. A subsequent call to `kafkaUnitServer.readProducerRecords(...)` or `kafkaUnitServer.readMessages(...)` will count and return only the messages sent after that point.
+
+
+Alternatively, you can use `getKafkaConnect()` to manually configure producer and consumer clients like:
+
+```java
+Properties props = new Properties();
+props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getCanonicalName());
+props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaUnitServer.getKafkaConnect());
+
+Producer<Long, String> producer = new KafkaProducer<>(props);
 ```
 
 ## License
