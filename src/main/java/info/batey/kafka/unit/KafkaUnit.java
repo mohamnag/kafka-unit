@@ -64,13 +64,11 @@ public class KafkaUnit {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
     private KafkaServerStartable broker;
-
     private Zookeeper zookeeper;
     private final String zookeeperString;
     private final String brokerString;
     private int zkPort;
     private int brokerPort;
-    private Producer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
 
     public KafkaUnit() throws IOException {
@@ -284,19 +282,18 @@ public class KafkaUnit {
 
     @SafeVarargs
     public final void sendMessages(ProducerRecord<String, String> message, ProducerRecord<String, String>... messages) {
-        if (producer == null) {
-            Properties props = new Properties();
-            props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-            props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-            props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
-            producer = new KafkaProducer<>(props);
-        }
+        Properties props = new Properties();
+        props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
+        Producer<String, String> producer = new KafkaProducer<>(props);
         producer.send(message);
+
         for (ProducerRecord<String, String> msg : messages) {
             producer.send(msg);
         }
+
         producer.close();
-        producer = null;
     }
 
     /**
