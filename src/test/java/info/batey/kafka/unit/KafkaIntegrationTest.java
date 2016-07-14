@@ -33,9 +33,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class KafkaIntegrationTest {
 
@@ -81,6 +79,26 @@ public class KafkaIntegrationTest {
             assertEquals("Wrong value for 'actual'", "1", e.getActual());
             assertEquals("Wrong error message", "Incorrect number of messages returned", e.getMessage());
         }
+    }
+
+    @Test
+    public void shouldSkipMessageCorrectly() throws Exception {
+        //given
+        String testTopic = "TestTopic";
+        kafkaUnitServer.createTopic(testTopic);
+        ProducerRecord<String, String> producerRecord1 = new ProducerRecord<>(testTopic, "key1", "value1");
+        ProducerRecord<String, String> producerRecord2 = new ProducerRecord<>(testTopic, "key2", "value2");
+        ProducerRecord<String, String> producerRecord3 = new ProducerRecord<>(testTopic, "key3", "value3");
+
+        //when
+        kafkaUnitServer.sendMessages(producerRecord1);
+        kafkaUnitServer.sendMessages(producerRecord2);
+        kafkaUnitServer.skipMessagesInQueue(testTopic);
+        kafkaUnitServer.sendMessages(producerRecord3);
+
+        ProducerRecord<String, String> readMessage = kafkaUnitServer.readProducerRecords(testTopic, 1).get(0);
+        assertEquals("Expecting 3rd key", "key3", readMessage.key());
+        assertEquals("Expecting 3rd value", "value3", readMessage.value());
     }
 
     @Test

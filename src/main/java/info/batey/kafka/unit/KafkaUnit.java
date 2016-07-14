@@ -64,13 +64,11 @@ public class KafkaUnit {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUnit.class);
 
     private KafkaServerStartable broker;
-
     private Zookeeper zookeeper;
     private final String zookeeperString;
     private final String brokerString;
     private int zkPort;
     private int brokerPort;
-    private Producer<String, String> producer = null;
     private Properties kafkaBrokerConfig = new Properties();
 
     public KafkaUnit() throws IOException {
@@ -188,7 +186,6 @@ public class KafkaUnit {
         TopicCommand.createTopic(zkUtils, opts);
     }
 
-
     public void shutdown() {
         if (broker != null) broker.shutdown();
         if (zookeeper != null) zookeeper.shutdown();
@@ -213,7 +210,27 @@ public class KafkaUnit {
         });
     }
 
+    public void skipMessagesInQueue(String topicName) throws TimeoutException {
+        readMessages(topicName, new MessageExtractor<String>() {
+            @Override
+            public String extract(MessageAndMetadata<String, String> messageAndMetadata) {
+                return messageAndMetadata.message();
+            }
+        });
+    }
+
     private <T> List<T> readMessages(String topicName, final int expectedMessages, final MessageExtractor<T> messageExtractor) throws TimeoutException {
+        List<T> receivedMessages = readMessages(topicName, messageExtractor);
+
+        if (receivedMessages.size() != expectedMessages) {
+            throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
+                    Integer.toString(receivedMessages.size()));
+        }
+
+        return receivedMessages;
+    }
+
+    private <T> List<T> readMessages(String topicName, final MessageExtractor<T> messageExtractor) throws TimeoutException {
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         Properties consumerProperties = new Properties();
         consumerProperties.put("zookeeper.connect", zookeeperString);
@@ -243,48 +260,50 @@ public class KafkaUnit {
                 } catch (ConsumerTimeoutException e) {
                     // always gets throws reaching the end of the stream
                 }
-                if (messages.size() != expectedMessages) {
-                    throw new ComparisonFailure("Incorrect number of messages returned", Integer.toString(expectedMessages),
-                            Integer.toString(messages.size()));
-                }
                 return messages;
             }
         });
 
+        List<T> receivedMessages;
+
         try {
-            return submit.get(3, TimeUnit.SECONDS);
+            receivedMessages = submit.get(3, TimeUnit.SECONDS);
+
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            if (e.getCause() instanceof ComparisonFailure) {
-                throw (ComparisonFailure) e.getCause();
-            }
             throw new TimeoutException("Timed out waiting for messages");
+
         } finally {
             singleThread.shutdown();
             javaConsumerConnector.shutdown();
         }
+
+        return receivedMessages;
     }
 
     @SafeVarargs
     public final void sendMessages(ProducerRecord<String, String> message, ProducerRecord<String, String>... messages) {
-        if (producer == null) {
-            Properties props = new Properties();
-            props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-            props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
-            props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
-            producer = new KafkaProducer<>(props);
-        }
+        Properties props = new Properties();
+        props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
+        props.put(BOOTSTRAP_SERVERS_CONFIG, brokerString);
+        Producer<String, String> producer = new KafkaProducer<>(props);
         producer.send(message);
+
         for (ProducerRecord<String, String> msg : messages) {
             producer.send(msg);
         }
+
         producer.close();
     }
 
     /**
      * Set custom broker configuration.
-     * See avaliable config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
+     * See available config keys in the kafka documentation: http://kafka.apache.org/documentation.html#brokerconfigs
      */
     public final void setKafkaBrokerConfig(String configKey, String configValue) {
+        if (broker != null) {
+            throw new RuntimeException("Kafka already started, config will not apply");
+        }
         kafkaBrokerConfig.setProperty(configKey, configValue);
     }
 
