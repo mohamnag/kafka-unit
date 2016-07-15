@@ -7,7 +7,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
 ## Versions
 | kafka-unit | Kafka broker            | Zookeeper |
 |------------|-------------------------|-----------|
-| 0.7        | kafka_2.11:0.10.0.0     | 3.4.6     |
+| 0.6.1      | kafka_2.11:0.10.0.0     | 3.4.6     |
 
 > For older releases/kafka versions refer to [original repo](https://github.com/chbatey/kafka-unit).
 
@@ -20,7 +20,7 @@ Allows you to start and stop a Kafka broker + ZooKeeper instance for unit testin
         maven { url "https://jitpack.io" }
    }
    dependencies {
-         compile 'com.github.mohamnag:kafka-unit:0.7'
+         compile 'com.github.mohamnag:kafka-unit:0.6.1'
    }
 ```
 
