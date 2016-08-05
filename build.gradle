@@ -16,6 +16,7 @@ dependencies {
     compile('org.apache.kafka:kafka_2.11:0.10.0.0') {
         exclude module: 'slf4j-simple'
         exclude module: 'slf4j-log4j12'
+        exclude module: 'log4j'
         exclude module: 'jmxtools'
         exclude module: 'jmxri'
         exclude module: 'jms'
